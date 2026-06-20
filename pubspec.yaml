@@ -1,0 +1,68 @@
+name: ai_demy_app
+description: "AI-Demy — 次世代AIラーニングプラットフォーム"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Supabase
+  supabase_flutter: ^2.9.0
+
+  # Navigation
+  go_router: ^15.1.2
+
+  # State management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # HTTP & API
+  http: ^1.4.0
+
+  # UI
+  google_fonts: ^6.2.1
+  flutter_svg: ^2.1.0
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+
+  # Video
+  video_player: ^2.9.5
+  chewie: ^1.10.0
+
+  # Audio / Voice
+  record: ^5.2.1
+  just_audio: ^0.10.4
+
+  # Storage & Local
+  shared_preferences: ^2.5.3
+  flutter_secure_storage: ^9.2.4
+
+  # Payments
+  flutter_stripe: ^13.0.0
+
+  # Utils
+  intl: ^0.20.2
+  url_launcher: ^6.3.1
+  image_picker: ^1.1.2
+  permission_handler: ^11.4.0
+  flutter_markdown: ^0.7.7
+  envied: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  riverpod_generator: ^2.6.5
+  build_runner: ^2.4.15
+  envied_generator: ^1.1.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
