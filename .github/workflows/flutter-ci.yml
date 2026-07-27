@@ -36,3 +36,42 @@ jobs:
           name: coverage
           path: coverage/lcov.info
           if-no-files-found: warn
+
+  integration:
+    name: 統合テスト（Androidエミュレータ）
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: 依存関係の取得
+        run: flutter pub get
+
+      # ハードウェア支援がないとエミュレータが極端に遅くなるため有効化する
+      - name: KVM を有効化
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: エミュレータで統合テストを実行
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: flutter test integration_test/app_test.dart --timeout 5x
