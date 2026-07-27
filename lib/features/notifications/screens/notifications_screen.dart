@@ -100,7 +100,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   onRefresh: _load,
                   child: ListView.separated(
                     itemCount: _notifications.length,
-                    separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.border),
+                    separatorBuilder: (_, _) => Divider(height: 1, color: AppColors.border),
                     itemBuilder: (context, i) => _tile(_notifications[i]),
                   ),
                 ),

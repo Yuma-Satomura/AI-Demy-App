@@ -75,6 +75,16 @@ Future<GoRouter> pumpAppRouter(
   return router;
 }
 
+/// テスト画面を縦長にする。
+///
+/// 既定の 800x600 では下部が固定バーに隠れてタップが当たらない画面があるため、
+/// 全要素を一度に表示したいテストで使う。テスト終了時に自動で元へ戻る。
+void useTallScreen(WidgetTester tester, {Size size = const Size(1000, 2000)}) {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+}
+
 /// 画面が今どのパスにいるかを返す。
 String currentLocation(GoRouter router) =>
     router.routerDelegate.currentConfiguration.uri.toString();

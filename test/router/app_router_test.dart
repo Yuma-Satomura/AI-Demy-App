@@ -14,6 +14,7 @@ Future<void> _initBackend({String? signedInUserId}) => initSupabaseForTest(
   tables: {
     'users': (_) => {'display_name': '里村', 'streak_count': 3},
     'enrollments': (_) => [],
+    'notifications': (_) => [],
     // 1件のリストは単一行クエリ（.single()）にもリストクエリにも使える
     'courses': (_) => [
       {

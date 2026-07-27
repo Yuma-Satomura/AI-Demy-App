@@ -15,6 +15,7 @@ void main() {
       signedInUserId: _userId,
       tables: {
         'users': (_) => {'display_name': '里村', 'streak_count': 12},
+        'notifications': (_) => [],
         'enrollments': (_) => [
           {
             'course_id': 'course-1',
@@ -37,6 +38,7 @@ void main() {
       signedInUserId: _userId,
       tables: {
         'users': (_) => {'display_name': '里村', 'streak_count': 0},
+        'notifications': (_) => [],
         'enrollments': (_) => [],
       },
     );
@@ -52,6 +54,7 @@ void main() {
       signedInUserId: _userId,
       tables: {
         'users': (_) => null, // maybeSingle が null を返すケース
+        'notifications': (_) => [],
         'enrollments': (_) => [],
       },
     );
@@ -67,6 +70,7 @@ void main() {
       signedInUserId: _userId,
       tables: {
         'users': (_) => {'display_name': '里村', 'streak_count': 1},
+        'notifications': (_) => [],
         'enrollments': (_) => [],
       },
     );
@@ -85,6 +89,7 @@ void main() {
       signedInUserId: _userId,
       tables: {
         'users': (_) => {'display_name': '里村', 'streak_count': 1},
+        'notifications': (_) => [],
         'enrollments': (_) => [],
       },
     );
@@ -106,6 +111,7 @@ void main() {
       signedInUserId: _userId,
       tables: {
         'users': (_) => {'display_name': '里村', 'streak_count': 1},
+        'notifications': (_) => [],
         'enrollments': (_) => [],
       },
     );

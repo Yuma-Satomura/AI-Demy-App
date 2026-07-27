@@ -20,6 +20,7 @@ void main() {
       tables: {
         'users': (_) => {'display_name': '里村', 'streak_count': 5},
         'enrollments': (_) => [],
+        'notifications': (_) => [],
       },
     );
 

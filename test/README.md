@@ -72,6 +72,21 @@ expect(SupabaseHarness.queryTo('/courses'), contains('is_published=eq.true'));
 expect(SupabaseHarness.requestTo('/token').body, contains('"test@example.com"'));
 ```
 
+### Edge Function（`functions.invoke`）
+
+```dart
+await initSupabaseForTest(
+  functions: {'ai-chat': (_) => {'content': '回答'}},
+);
+```
+
+⚠️ **ただし widget テストでは完了しない。** functions_client は JSON の
+エンコード / デコードを別 isolate（YAJsonIsolate）で行うため、widget テストの
+fake-async 下では `runAsync` を使っても Future が完了せず HTTP まで到達しない。
+`Supabase.initialize` に isolate を差し込む口がないため、Edge Function を叩く
+UI 操作（学習画面の AI チャット送信）のテストは `skip` にしてある。
+素の `test()`（fake-async ではない）なら動作する。
+
 ### ログインの成否を切り替える
 
 ```dart
@@ -92,7 +107,8 @@ await initSupabaseForTest(
 | `pumpRouter(tester, router)` | 任意の `GoRouter` をマウント |
 | `pumpAppRouter(tester, overrides: [...])` | アプリ本体の `routerProvider` でマウント |
 | `currentLocation(router)` | 現在のパスを取得 |
-| `settle(tester)` | 非同期ロードの完了待ち |
+| `settle(tester)` | 非同期ロードの完了待ち（`frames:` で待ち時間を伸ばせる） |
+| `useTallScreen(tester)` | 画面を縦長にする。下部の固定バーに隠れてタップが当たらないとき |
 
 `pumpAndSettle` は使わない。ローディング中の `CircularProgressIndicator` が
 回り続けてタイムアウトするため、代わりに `settle(tester)` で
@@ -112,6 +128,14 @@ final router = await pumpAppRouter(
 );
 expect(currentLocation(router), '/login');
 ```
+
+## 現在の状態
+
+- 95テスト（+ skip 4）/ 行カバレッジ **約 90%**
+- 未カバーが多いのは以下
+  - `course_detail_screen.dart`（66%）— Stripe 購入フローが
+    `http.post` を直接使っており、テストから差し替えられないため未検証
+  - `main.dart`（42%）— 起動処理
 
 ## テストを足すときの注意
 

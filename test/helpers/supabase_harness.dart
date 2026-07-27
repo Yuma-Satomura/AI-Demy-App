@@ -50,6 +50,10 @@ typedef TableResponder = Object? Function(http.Request request);
 /// `/auth/v1/*` へのリクエストに対するフェイク応答。
 typedef AuthResponder = http.Response Function(http.Request request);
 
+/// Edge Function 1つに対するフェイク応答を組み立てるコールバック。
+/// 例外を投げると呼び出し側では FunctionsException になる。
+typedef FunctionResponder = Object? Function(http.Request request);
+
 const testSupabaseUrl = 'https://test.supabase.co';
 
 // 署名検証はされないが、Session.expiresAt の算出で JWT としてパースされるため
@@ -67,6 +71,7 @@ const _fakeAccessToken =
 Future<void> initSupabaseForTest({
   String? signedInUserId,
   Map<String, TableResponder> tables = const {},
+  Map<String, FunctionResponder> functions = const {},
   AuthResponder? auth,
   MockClient? httpClient,
 }) async {
@@ -74,7 +79,7 @@ Future<void> initSupabaseForTest({
   SupabaseHarness.requests.clear();
   SupabaseHarness.unhandledPaths.clear();
 
-  final client = httpClient ?? _mockClientFor(tables, auth);
+  final client = httpClient ?? _mockClientFor(tables, functions, auth);
 
   await Supabase.initialize(
     url: testSupabaseUrl,
@@ -140,6 +145,7 @@ http.Response signInSuccessResponse(
 
 MockClient _mockClientFor(
   Map<String, TableResponder> tables,
+  Map<String, FunctionResponder> functions,
   AuthResponder? auth,
 ) {
   return MockClient((request) async {
@@ -158,6 +164,20 @@ MockClient _mockClientFor(
         );
       }
       return _json(responder(request), request);
+    }
+
+    if (path.startsWith('/functions/v1/')) {
+      final name = path.substring('/functions/v1/'.length);
+      final responder = functions[name];
+      if (responder == null) {
+        SupabaseHarness.unhandledPaths.add(path);
+        return _response(
+          {'message': 'テストで未登録の Edge Function を呼びました: $name'},
+          request,
+          status: 500,
+        );
+      }
+      return _response(responder(request), request);
     }
 
     if (path.startsWith('/auth/v1/')) {
