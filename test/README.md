@@ -13,6 +13,28 @@ flutter analyze                   # 静的解析
 CI（`.github/workflows/flutter-ci.yml`）は main への push / PR で
 `flutter analyze` と `flutter test --coverage` を実行する。
 
+## 統合テスト（実機 / エミュレータ）
+
+`flutter test` は fake-async で動くため、別 isolate やネイティブプラグインを
+待てない。それらは `integration_test/app_test.dart` で実機相当で検証する。
+
+```bash
+flutter test integration_test/app_test.dart -d <device>
+```
+
+CI では `統合テスト（Androidエミュレータ）` ジョブが Android エミュレータ上で
+自動実行する。ローカルに実機・エミュレータがなくても CI で回る。
+
+検証しているのは以下。ネットワークには出ない（Supabase / 自社APIはフェイク）。
+
+- AI チャット送信（`functions.invoke`。別 isolate のため widget テスト不可）
+- Stripe のネイティブ決済に到達し、失敗しても落ちないこと
+- 無料コースがネイティブ決済を経ずに受講済みになること
+- アプリ全体の起動描画
+
+Stripe の publishable key は設定していないので、決済シートは必ず失敗する。
+**成功パスまで通すには pk_test_ キーとテスト用 clientSecret が必要**。
+
 ## ディレクトリ構成
 
 | パス | 内容 |

@@ -37,7 +37,9 @@ Future<void> _send(WidgetTester tester, String text) async {
 /// エンコード / デコードを別 isolate（YAJsonIsolate）で行うため、widget テストの
 /// fake-async 下では `runAsync` を使っても Future が完了せず HTTP まで到達しない。
 /// Supabase.initialize に isolate を差し込む口がないため、送信系はここでは検証できない。
-/// （送信を伴わない描画・履歴・クエリは下のテストで担保している）
+///
+/// → 同じ内容を `integration_test/app_test.dart` で実機相当で検証している
+///   （CI の「統合テスト（Androidエミュレータ）」ジョブで自動実行）。
 const _skipEdgeFunction = true;
 
 void main() {
