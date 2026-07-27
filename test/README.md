@@ -27,7 +27,6 @@ CI では `統合テスト（Androidエミュレータ）` ジョブが Android 
 
 検証しているのは以下。ネットワークには出ない（Supabase / 自社APIはフェイク）。
 
-- AI チャット送信（`functions.invoke`。別 isolate のため widget テスト不可）
 - Stripe のネイティブ決済に到達し、失敗しても落ちないこと
 - 無料コースがネイティブ決済を経ずに受講済みになること
 - アプリ全体の起動描画
@@ -94,21 +93,6 @@ expect(SupabaseHarness.queryTo('/courses'), contains('is_published=eq.true'));
 expect(SupabaseHarness.requestTo('/token').body, contains('"test@example.com"'));
 ```
 
-### Edge Function（`functions.invoke`）
-
-```dart
-await initSupabaseForTest(
-  functions: {'ai-chat': (_) => {'content': '回答'}},
-);
-```
-
-⚠️ **ただし widget テストでは完了しない。** functions_client は JSON の
-エンコード / デコードを別 isolate（YAJsonIsolate）で行うため、widget テストの
-fake-async 下では `runAsync` を使っても Future が完了せず HTTP まで到達しない。
-`Supabase.initialize` に isolate を差し込む口がないため、Edge Function を叩く
-UI 操作（学習画面の AI チャット送信）のテストは `skip` にしてある。
-素の `test()`（fake-async ではない）なら動作する。
-
 ### ログインの成否を切り替える
 
 ```dart
@@ -168,10 +152,9 @@ addTearDown(resetAppHttpClient);   // 戻し忘れると他のテストに漏れ
 
 ## 現在の状態
 
-- 104テスト（+ skip 4）/ 行カバレッジ **約 93%**
+- 110テスト（skip なし）/ 行カバレッジ **約 94%**
 - 残っている未カバー
   - `main.dart`（42%）— 起動処理
-  - `learn_screen.dart`（82%）— AI チャット送信（上記の isolate 制約）
   - `course_detail_screen.dart`（85%）— Stripe のネイティブ決済シート
     （`initPaymentSheet` / `presentPaymentSheet`）は実機の UI なので検証不可。
     決済APIの呼び出し・無料/サブスク/エラー分岐はテスト済み

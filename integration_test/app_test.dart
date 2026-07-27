@@ -1,9 +1,8 @@
 // 実機 / エミュレータ上で走らせる統合テスト。
 //
-// `flutter test`（widget テスト）は fake-async で動くため、
-//   - `functions.invoke()` が使う別 isolate（YAJsonIsolate）
-//   - Stripe などネイティブプラグインのメソッドチャネル
-// が完了せず検証できない。ここではそれらを実際に動かして確認する。
+// `flutter test`（widget テスト）は fake-async で動くため、Stripe など
+// ネイティブプラグインのメソッドチャネルが完了せず検証できない。
+// ここではそれらを実際に動かして確認する。
 //
 // 実行:
 //   flutter test integration_test/app_test.dart -d <device>
@@ -15,7 +14,6 @@ import 'dart:convert';
 import 'package:ai_demy_app/core/auth/auth_gateway.dart';
 import 'package:ai_demy_app/core/network/app_http_client.dart';
 import 'package:ai_demy_app/features/courses/screens/course_detail_screen.dart';
-import 'package:ai_demy_app/features/learn/screens/learn_screen.dart';
 import 'package:ai_demy_app/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,114 +43,10 @@ Future<void> waitFor(
   fail('${timeout.inSeconds}秒待っても見つかりませんでした: $finder');
 }
 
-Future<void> _openChatTab(WidgetTester tester) async {
-  await tester.tap(find.text('AIチャット'));
-  for (var i = 0; i < 20; i++) {
-    await tester.pump(const Duration(milliseconds: 50));
-  }
-}
-
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   tearDown(disposeSupabaseForTest);
-
-  group('AIチャット（別 isolate を使う Edge Function）', () {
-    Future<void> initChat({Map<String, FunctionResponder> functions = const {}}) =>
-        initSupabaseForTest(
-          signedInUserId: 'user-1',
-          tables: {
-            'curriculum_units': (_) => {
-              'title': '第1章 AIとは',
-              'difficulty': 'beginner',
-            },
-            'chat_messages': (_) => [],
-          },
-          functions: functions,
-        );
-
-    testWidgets('メッセージを送るとAIの返答が表示される', (tester) async {
-      await initChat(
-        functions: {
-          'ai-chat': (_) => {'content': 'AIとは人工知能です'},
-        },
-      );
-
-      await pumpScreen(
-        tester,
-        const LearnScreen(courseId: _courseId, unitId: _unitId),
-      );
-      await waitFor(tester, find.text('AIチャット'));
-      await _openChatTab(tester);
-
-      await tester.enterText(find.byType(TextField).last, 'AIとは？');
-      await tester.tap(find.byIcon(Icons.send));
-
-      await waitFor(tester, find.text('AIとは人工知能です'));
-      expect(find.text('AIとは？'), findsOneWidget);
-    });
-
-    testWidgets('送信内容が Edge Function に渡っている', (tester) async {
-      await initChat(
-        functions: {
-          'ai-chat': (_) => {'content': '回答'},
-        },
-      );
-
-      await pumpScreen(
-        tester,
-        const LearnScreen(courseId: _courseId, unitId: _unitId),
-      );
-      await waitFor(tester, find.text('AIチャット'));
-      await _openChatTab(tester);
-
-      await tester.enterText(find.byType(TextField).last, 'テスト質問');
-      await tester.tap(find.byIcon(Icons.send));
-      await waitFor(tester, find.text('回答'));
-
-      final body = SupabaseHarness.requestTo('/ai-chat').body;
-      expect(body, contains('"courseId":"$_courseId"'));
-      expect(body, contains('"unitId":"$_unitId"'));
-      expect(body, contains('"message":"テスト質問"'));
-    });
-
-    testWidgets('AI呼び出しが失敗してもエラー文言を出して落ちない', (tester) async {
-      await initChat(); // ai-chat 未登録 → 500
-
-      await pumpScreen(
-        tester,
-        const LearnScreen(courseId: _courseId, unitId: _unitId),
-      );
-      await waitFor(tester, find.text('AIチャット'));
-      await _openChatTab(tester);
-
-      await tester.enterText(find.byType(TextField).last, '失敗するはずの質問');
-      await tester.tap(find.byIcon(Icons.send));
-
-      await waitFor(tester, find.text('エラーが発生しました。再度お試しください。'));
-      expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('応答に content がなければ代替文言を出す', (tester) async {
-      await initChat(
-        functions: {
-          'ai-chat': (_) => {'unexpected': true},
-        },
-      );
-
-      await pumpScreen(
-        tester,
-        const LearnScreen(courseId: _courseId, unitId: _unitId),
-      );
-      await waitFor(tester, find.text('AIチャット'));
-      await _openChatTab(tester);
-
-      await tester.enterText(find.byType(TextField).last, '質問');
-      await tester.tap(find.byIcon(Icons.send));
-
-      await waitFor(tester, find.text('応答を取得できませんでした'));
-    });
-  });
 
   group('Stripe ネイティブ決済', () {
     Future<void> initCourse() => initSupabaseForTest(

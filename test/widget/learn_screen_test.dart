@@ -1,6 +1,11 @@
+import 'dart:convert';
+
+import 'package:ai_demy_app/core/network/app_http_client.dart';
 import 'package:ai_demy_app/features/learn/screens/learn_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 import '../helpers/pump_app.dart';
 import '../helpers/supabase_harness.dart';
@@ -8,22 +13,37 @@ import '../helpers/supabase_harness.dart';
 const _courseId = 'course-1';
 const _unitId = 'unit-1';
 
-Future<void> _init({
-  List<Map<String, dynamic>> messages = const [],
-  Map<String, FunctionResponder> functions = const {},
-}) => initSupabaseForTest(
-  signedInUserId: 'user-1',
-  tables: {
-    'curriculum_units': (_) => {'title': '第1章 AIとは', 'difficulty': 'beginner'},
-    'chat_messages': (_) => messages,
-  },
-  functions: functions,
-);
+Future<void> _init({List<Map<String, dynamic>> messages = const []}) =>
+    initSupabaseForTest(
+      signedInUserId: 'user-1',
+      tables: {
+        'curriculum_units': (_) => {
+          'title': '第1章 AIとは',
+          'difficulty': 'beginner',
+        },
+        'chat_messages': (_) => messages,
+      },
+    );
+
+/// AIチャット API（/api/mobile/ai-chat）のフェイク。
+List<http.Request> fakeAiChat({Object? body, int status = 200}) {
+  final requests = <http.Request>[];
+  appHttpClient = MockClient((req) async {
+    requests.add(req);
+    return http.Response(
+      jsonEncode(body),
+      status,
+      request: req,
+      headers: {'content-type': 'application/json; charset=utf-8'},
+    );
+  });
+  addTearDown(resetAppHttpClient);
+  return requests;
+}
 
 Future<void> _openChatTab(WidgetTester tester) async {
   await tester.tap(find.text('AIチャット'));
-  // タブの切り替えアニメーション（既定 300ms）が終わるまで待つ。
-  // 途中で送信ボタンを押すと画面外判定になる。
+  // タブ切り替えアニメーション（既定 300ms）が終わるまで待つ
   await settle(tester, frames: 25);
 }
 
@@ -32,15 +52,6 @@ Future<void> _send(WidgetTester tester, String text) async {
   await tester.tap(find.byIcon(Icons.send));
   await settle(tester);
 }
-
-/// AI チャットの送信は `functions.invoke()` を使う。functions_client は JSON の
-/// エンコード / デコードを別 isolate（YAJsonIsolate）で行うため、widget テストの
-/// fake-async 下では `runAsync` を使っても Future が完了せず HTTP まで到達しない。
-/// Supabase.initialize に isolate を差し込む口がないため、送信系はここでは検証できない。
-///
-/// → 同じ内容を `integration_test/app_test.dart` で実機相当で検証している
-///   （CI の「統合テスト（Androidエミュレータ）」ジョブで自動実行）。
-const _skipEdgeFunction = true;
 
 void main() {
   tearDown(disposeSupabaseForTest);
@@ -63,7 +74,11 @@ void main() {
     await _init(
       messages: [
         {'role': 'user', 'content': 'AIとは何ですか', 'created_at': '2026-01-01'},
-        {'role': 'assistant', 'content': '人工知能のことです', 'created_at': '2026-01-01'},
+        {
+          'role': 'assistant',
+          'content': '人工知能のことです',
+          'created_at': '2026-01-01',
+        },
       ],
     );
 
@@ -108,9 +123,8 @@ void main() {
   });
 
   testWidgets('メッセージを送るとAIの返答が追加される', (tester) async {
-    await _init(
-      functions: {'ai-chat': (_) => {'content': 'AIとは人工知能です'}},
-    );
+    await _init();
+    fakeAiChat(body: {'content': 'AIとは人工知能です'});
 
     await pumpScreen(
       tester,
@@ -121,12 +135,11 @@ void main() {
 
     expect(find.text('AIとは？'), findsOneWidget);
     expect(find.text('AIとは人工知能です'), findsOneWidget);
-  }, skip: _skipEdgeFunction);
+  });
 
-  testWidgets('送信時に courseId / unitId / message を渡している', (tester) async {
-    await _init(
-      functions: {'ai-chat': (_) => {'content': '回答'}},
-    );
+  testWidgets('courseId / unitId / message と認証トークンを送っている', (tester) async {
+    await _init();
+    final requests = fakeAiChat(body: {'content': '回答'});
 
     await pumpScreen(
       tester,
@@ -135,14 +148,40 @@ void main() {
     await _openChatTab(tester);
     await _send(tester, 'テスト質問');
 
-    final body = SupabaseHarness.requestTo('/ai-chat').body;
-    expect(body, contains('"courseId":"$_courseId"'));
-    expect(body, contains('"unitId":"$_unitId"'));
-    expect(body, contains('"message":"テスト質問"'));
-  }, skip: _skipEdgeFunction);
+    final req = requests.single;
+    expect(req.url.path, endsWith('/api/mobile/ai-chat'));
+    expect(req.headers['Authorization'], startsWith('Bearer '));
+    expect(req.body, contains('"courseId":"$_courseId"'));
+    expect(req.body, contains('"unitId":"$_unitId"'));
+    expect(req.body, contains('"message":"テスト質問"'));
+  });
 
-  testWidgets('AI呼び出しが失敗してもエラー文言を出して落ちない', (tester) async {
-    await _init(); // ai-chat 未登録 → 500
+  testWidgets('直前までの会話を history として送る', (tester) async {
+    await _init(
+      messages: [
+        {'role': 'user', 'content': '前の質問', 'created_at': '2026-01-01'},
+        {'role': 'assistant', 'content': '前の回答', 'created_at': '2026-01-01'},
+      ],
+    );
+    final requests = fakeAiChat(body: {'content': '新しい回答'});
+
+    await pumpScreen(
+      tester,
+      const LearnScreen(courseId: _courseId, unitId: _unitId),
+    );
+    await _openChatTab(tester);
+    await _send(tester, '新しい質問');
+
+    final body = requests.single.body;
+    expect(body, contains('"前の質問"'));
+    expect(body, contains('"前の回答"'));
+    // 送信中のメッセージ自体は history に含めない
+    expect(body, isNot(contains('"content":"新しい質問"}]')));
+  });
+
+  testWidgets('APIがエラーを返してもエラー文言を出して落ちない', (tester) async {
+    await _init();
+    fakeAiChat(body: {'error': 'Not enrolled'}, status: 403);
 
     await pumpScreen(
       tester,
@@ -154,12 +193,29 @@ void main() {
     expect(find.text('失敗するはずの質問'), findsOneWidget);
     expect(find.text('エラーが発生しました。再度お試しください。'), findsOneWidget);
     expect(tester.takeException(), isNull);
-  }, skip: _skipEdgeFunction);
+  });
+
+  testWidgets('通信自体が失敗しても落ちない', (tester) async {
+    await _init();
+    appHttpClient = MockClient(
+      (_) => throw http.ClientException('接続できません'),
+    );
+    addTearDown(resetAppHttpClient);
+
+    await pumpScreen(
+      tester,
+      const LearnScreen(courseId: _courseId, unitId: _unitId),
+    );
+    await _openChatTab(tester);
+    await _send(tester, '質問');
+
+    expect(find.text('エラーが発生しました。再度お試しください。'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('応答に content がなければ代替文言を出す', (tester) async {
-    await _init(
-      functions: {'ai-chat': (_) => {'unexpected': true}},
-    );
+    await _init();
+    fakeAiChat(body: {'unexpected': true});
 
     await pumpScreen(
       tester,
@@ -169,12 +225,11 @@ void main() {
     await _send(tester, '質問');
 
     expect(find.text('応答を取得できませんでした'), findsOneWidget);
-  }, skip: _skipEdgeFunction);
+  });
 
   testWidgets('空文字は送信しない', (tester) async {
-    await _init(
-      functions: {'ai-chat': (_) => {'content': '返答'}},
-    );
+    await _init();
+    final requests = fakeAiChat(body: {'content': '返答'});
 
     await pumpScreen(
       tester,
@@ -184,9 +239,6 @@ void main() {
     await _send(tester, '   ');
 
     expect(find.text('AIに質問してみましょう'), findsOneWidget);
-    expect(
-      SupabaseHarness.requests.any((r) => r.url.path.endsWith('/ai-chat')),
-      isFalse,
-    );
+    expect(requests, isEmpty);
   });
 }

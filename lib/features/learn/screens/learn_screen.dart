@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/config/api_config.dart';
+import '../../../core/network/app_http_client.dart';
 import '../../../core/theme/app_theme.dart';
 
 class LearnScreen extends StatefulWidget {
@@ -66,11 +70,32 @@ class _LearnScreenState extends State<LearnScreen> with SingleTickerProviderStat
     });
 
     try {
-      final res = await Supabase.instance.client.functions.invoke(
-        'ai-chat',
-        body: {'courseId': widget.courseId, 'unitId': widget.unitId, 'message': text},
+      // Edge Function は存在しないため、Web 側の /api/mobile/ai-chat を叩く
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session == null) throw StateError('not signed in');
+
+      final res = await appHttpClient.post(
+        Uri.parse('$kApiBaseUrl/api/mobile/ai-chat'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+        body: jsonEncode({
+          'courseId': widget.courseId,
+          'unitId': widget.unitId,
+          'message': text,
+          // 直近のやり取りだけ文脈として送る
+          'history': _messages
+              .where((m) => m['content'] != text)
+              .map((m) => {'role': m['role'], 'content': m['content']})
+              .toList(),
+        }),
       );
-      final reply = res.data?['content'] as String? ?? '応答を取得できませんでした';
+
+      if (res.statusCode != 200) throw StateError('HTTP ${res.statusCode}');
+
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final reply = data['content'] as String? ?? '応答を取得できませんでした';
       if (mounted) setState(() => _messages.add({'role': 'assistant', 'content': reply}));
     } catch (_) {
       if (mounted) setState(() => _messages.add({'role': 'assistant', 'content': 'エラーが発生しました。再度お試しください。'}));
