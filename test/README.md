@@ -129,13 +129,30 @@ final router = await pumpAppRouter(
 expect(currentLocation(router), '/login');
 ```
 
+## 自社 Web API（`/api/mobile/...`）のモック
+
+Supabase を経由しない直接の HTTP 呼び出しは `appHttpClient`
+（`lib/core/network/app_http_client.dart`）を通す。テストではここを差し替える。
+
+```dart
+appHttpClient = MockClient((req) async => http.Response(
+      jsonEncode({'type': 'free'}), 200, request: req,
+    ));
+addTearDown(resetAppHttpClient);   // 戻し忘れると他のテストに漏れる
+```
+
+`url_launcher` などのプラグインは `plugins.flutter.io/url_launcher` の
+メソッドチャネルをモックする（例は `course_detail_screen_test.dart`）。
+
 ## 現在の状態
 
-- 95テスト（+ skip 4）/ 行カバレッジ **約 90%**
-- 未カバーが多いのは以下
-  - `course_detail_screen.dart`（66%）— Stripe 購入フローが
-    `http.post` を直接使っており、テストから差し替えられないため未検証
+- 104テスト（+ skip 4）/ 行カバレッジ **約 93%**
+- 残っている未カバー
   - `main.dart`（42%）— 起動処理
+  - `learn_screen.dart`（82%）— AI チャット送信（上記の isolate 制約）
+  - `course_detail_screen.dart`（85%）— Stripe のネイティブ決済シート
+    （`initPaymentSheet` / `presentPaymentSheet`）は実機の UI なので検証不可。
+    決済APIの呼び出し・無料/サブスク/エラー分岐はテスト済み
 
 ## テストを足すときの注意
 
