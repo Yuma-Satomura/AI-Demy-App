@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../core/config/api_config.dart';
 import '../../../core/theme/app_theme.dart';
 
 class BtobDashboardScreen extends StatefulWidget {
@@ -85,10 +87,10 @@ class _BtobDashboardScreenState extends State<BtobDashboardScreen> {
           const SizedBox(height: 24),
           const Text('クイックアクション', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
-          _actionCard(Icons.people_outline, '社員管理', '社員の追加・編集'),
-          _actionCard(Icons.assignment_outlined, 'コース割当', '社員へのコース割当'),
-          _actionCard(Icons.bar_chart_outlined, 'レポート', '研修効果レポート'),
-          _actionCard(Icons.link, 'HR連携', 'SmartHR / freee 連携'),
+          _actionCard(Icons.people_outline, '社員管理', '社員の追加・編集', '/btob/admin/employees'),
+          _actionCard(Icons.assignment_outlined, 'コース割当', '社員へのコース割当', '/btob/admin/courses'),
+          _actionCard(Icons.bar_chart_outlined, 'レポート', '研修効果レポート', '/btob/admin/reports'),
+          _actionCard(Icons.link, 'HR連携', 'SmartHR / freee 連携', '/btob/admin/hr-integration'),
         ],
       ),
     );
@@ -158,15 +160,18 @@ class _BtobDashboardScreenState extends State<BtobDashboardScreen> {
     );
   }
 
-  Widget _actionCard(IconData icon, String title, String subtitle) {
+  Widget _actionCard(IconData icon, String title, String subtitle, String path) {
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
       child: ListTile(
         leading: Icon(icon, color: AppColors.green),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: AppColors.muted)),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.muted),
-        onTap: () {},
+        trailing: const Icon(Icons.open_in_new, size: 14, color: AppColors.muted),
+        onTap: () async {
+          final url = Uri.parse('$kApiBaseUrl$path');
+          if (await canLaunchUrl(url)) await launchUrl(url, mode: LaunchMode.externalApplication);
+        },
       ),
     );
   }

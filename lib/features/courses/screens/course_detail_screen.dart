@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/network/app_http_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/price_format.dart';
 
@@ -74,7 +74,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     setState(() => _purchasing = true);
 
     try {
-      final res = await http.post(
+      final res = await appHttpClient.post(
         Uri.parse('$kApiBaseUrl/api/mobile/payment-intent'),
         headers: {
           'Content-Type': 'application/json',
@@ -97,7 +97,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
       }
 
       if (type == 'subscription') {
-        final url = Uri.tryParse(data['url'] as String? ?? '');
+        // 空文字は Uri.tryParse が空の Uri を返して null にならないため先に弾く
+        final rawUrl = data['url'] as String? ?? '';
+        final url = rawUrl.isEmpty ? null : Uri.tryParse(rawUrl);
         if (url != null && await canLaunchUrl(url)) {
           await launchUrl(url, mode: LaunchMode.externalApplication);
         }
@@ -123,7 +125,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
 
         // Confirm enrollment server-side
         final paymentIntentId = clientSecret.split('_secret_').first;
-        final confirmRes = await http.post(
+        final confirmRes = await appHttpClient.post(
           Uri.parse('$kApiBaseUrl/api/mobile/complete-payment'),
           headers: {
             'Content-Type': 'application/json',
