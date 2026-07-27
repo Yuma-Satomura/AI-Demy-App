@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/price_format.dart';
 
 class CoursesScreen extends StatefulWidget {
   const CoursesScreen({super.key});
@@ -77,10 +78,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
   Widget _courseCard(Map<String, dynamic> course) {
     final instructor = course['users'] as Map<String, dynamic>?;
-    final priceType = course['price_type'] as String?;
-    final price = priceType == 'subscription'
-        ? '¥${course['price_monthly']}/月'
-        : '¥${course['price_one_time']}';
+    final price = formatCoursePriceFromRow(course);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),

@@ -1,6 +1,16 @@
 # ai_demy_app
 
-A new Flutter project.
+AI-Demy の iOS / Android ネイティブアプリ（Flutter）。
+
+## テスト
+
+```bash
+flutter test        # 全テスト
+flutter analyze     # 静的解析
+```
+
+書き方・Supabase のモック方法は [test/README.md](test/README.md) を参照。
+main への push / PR では GitHub Actions が同じチェックを実行する。
 
 ## Getting Started
 
