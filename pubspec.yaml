@@ -35,7 +35,9 @@ dependencies:
   chewie: ^1.10.0
 
   # Audio / Voice
-  record: ^5.2.1
+  # 5.x は record_linux 0.7.2 を引き込み、record_platform_interface と
+  # 互換がなく Android ビルドが通らない（7.x で解消）
+  record: ^7.1.1
   just_audio: ^0.10.4
 
   # Storage & Local
