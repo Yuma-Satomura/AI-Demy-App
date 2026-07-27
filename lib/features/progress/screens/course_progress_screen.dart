@@ -39,12 +39,14 @@ class _CourseProgressScreenState extends State<CourseProgressScreen> {
         .eq('course_id', widget.courseId)
         .order('order_index');
 
+    // unit_progress に status 列はない。完了は boolean の completed
+    // （ウェブ版も .eq('completed', true) で判定している）
     final progress = await Supabase.instance.client
         .from('unit_progress')
         .select('unit_id')
         .eq('user_id', user.id)
         .eq('course_id', widget.courseId)
-        .eq('status', 'completed');
+        .eq('completed', true);
 
     if (mounted) {
       setState(() {

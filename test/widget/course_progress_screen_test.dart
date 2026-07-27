@@ -121,7 +121,8 @@ void main() {
     final query = SupabaseHarness.queryTo('/unit_progress');
     expect(query, contains('user_id=eq.$_userId'));
     expect(query, contains('course_id=eq.$_courseId'));
-    expect(query, contains('status=eq.completed'));
+    // 実スキーマは status ではなく boolean の completed
+    expect(query, contains('completed=eq.true'));
   });
 
   testWidgets('未ログインなら取得せずローディングのまま', (tester) async {

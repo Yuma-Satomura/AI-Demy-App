@@ -6,6 +6,10 @@ version: 1.0.0+1
 environment:
   sdk: ^3.12.0
 
+# 実際に使っているものだけを入れる方針。
+# 未使用の依存はビルド時間・APKサイズを増やすうえ、壊れたバージョンを
+# 引き込んでビルドを止めることがある（record 5.x で実際に発生）。
+# 機能を実装するときに下の「将来の機能で追加するもの」から戻すこと。
 dependencies:
   flutter:
     sdk: flutter
@@ -19,41 +23,28 @@ dependencies:
 
   # State management
   flutter_riverpod: ^2.6.1
-  riverpod_annotation: ^2.6.1
 
-  # HTTP & API
+  # HTTP & API（自社 Web API 呼び出し）
   http: ^1.4.0
 
   # UI
   google_fonts: ^6.2.1
-  flutter_svg: ^2.1.0
-  cached_network_image: ^3.4.1
-  shimmer: ^3.0.0
-
-  # Video
-  video_player: ^2.9.5
-  chewie: ^1.10.0
-
-  # Audio / Voice
-  # 5.x は record_linux 0.7.2 を引き込み、record_platform_interface と
-  # 互換がなく Android ビルドが通らない（7.x で解消）
-  record: ^7.1.1
-  just_audio: ^0.10.4
-
-  # Storage & Local
-  shared_preferences: ^2.5.3
-  flutter_secure_storage: ^9.2.4
 
   # Payments
   flutter_stripe: ^13.0.0
 
   # Utils
-  intl: ^0.20.2
   url_launcher: ^6.3.1
-  image_picker: ^1.1.2
-  permission_handler: ^11.4.0
-  flutter_markdown: ^0.7.7
-  envied: ^1.1.0
+
+# 将来の機能で追加するもの（ウェブ版には実装済み・Flutter未実装）
+#   動画レッスン          : video_player, chewie
+#   音声会話 / 発音練習    : record（7.x以上）, just_audio, permission_handler
+#   OJT写真アップロード    : image_picker, permission_handler
+#   Markdown教材表示      : flutter_markdown
+#   サムネイル画像        : cached_network_image, shimmer
+#   日時・通貨の書式       : intl
+#   Riverpod コード生成    : riverpod_annotation + riverpod_generator + build_runner
+#   環境変数の型安全化     : envied + envied_generator
 
 dev_dependencies:
   flutter_test:
@@ -61,9 +52,6 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  riverpod_generator: ^2.6.5
-  build_runner: ^2.4.15
-  envied_generator: ^1.1.0
 
 flutter:
   uses-material-design: true
