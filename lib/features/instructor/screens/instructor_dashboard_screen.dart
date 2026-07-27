@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/price_format.dart';
 
 class InstructorDashboardScreen extends StatefulWidget {
   const InstructorDashboardScreen({super.key});
@@ -105,10 +106,7 @@ class _InstructorDashboardScreenState extends State<InstructorDashboardScreen> {
 
   Widget _courseCard(Map<String, dynamic> course) {
     final published = course['is_published'] == true;
-    final priceType = course['price_type'] as String?;
-    final price = priceType == 'subscription'
-        ? '¥${course['price_monthly']}/月'
-        : '¥${course['price_one_time']}';
+    final price = formatCoursePriceFromRow(course);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),

@@ -3,6 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/theme/app_theme.dart';
 
+// Unread notification count helper (fetched once on load)
+int _unreadCount = 0;
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -38,10 +41,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         .eq('status', 'active')
         .limit(5);
 
+    final notifData = await Supabase.instance.client
+        .from('notifications')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('is_read', false);
+
     if (mounted) {
       setState(() {
         _userData = userData;
         _enrollments = List<Map<String, dynamic>>.from(enrollments);
+        _unreadCount = (notifData as List).length;
         _loading = false;
       });
     }
@@ -53,6 +63,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: Text('AI-Demy', style: TextStyle(color: AppColors.green, fontWeight: FontWeight.w800)),
         actions: [
+          Stack(
+            alignment: Alignment.topRight,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                onPressed: () => context.push('/notifications'),
+              ),
+              if (_unreadCount > 0)
+                Positioned(
+                  top: 8, right: 8,
+                  child: Container(
+                    width: 16, height: 16,
+                    decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                    child: Center(
+                      child: Text(
+                        _unreadCount > 9 ? '9+' : '$_unreadCount',
+                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.logout, color: AppColors.muted),
             onPressed: () async {
@@ -86,6 +119,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       foregroundColor: AppColors.green,
                     ),
                     child: const Text('コース一覧を見る'),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _quickLinkCard(
+                          icon: Icons.workspace_premium_outlined,
+                          label: '証明書',
+                          color: AppColors.amber,
+                          onTap: () => context.push('/certificates'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _quickLinkCard(
+                          icon: Icons.bar_chart_outlined,
+                          label: '進捗管理',
+                          color: AppColors.green,
+                          onTap: () => context.push('/certificates'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -148,6 +203,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: Text(course?['title'] ?? 'コース', style: const TextStyle(fontWeight: FontWeight.w600)),
         trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.muted),
         onTap: () => context.go('/courses/${e['course_id']}'),
+      ),
+    );
+  }
+
+  Widget _quickLinkCard({required IconData icon, required String label, required Color color, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(width: 8),
+            Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          ],
+        ),
       ),
     );
   }

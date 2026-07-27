@@ -1,7 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../core/config/api_config.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/price_format.dart';
 
 class CourseDetailScreen extends StatefulWidget {
   final String courseId;
@@ -16,6 +22,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
   List<Map<String, dynamic>> _units = [];
   bool _enrolled = false;
   bool _loading = true;
+  bool _purchasing = false;
 
   @override
   void initState() {
@@ -60,16 +67,103 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
     }
   }
 
+  Future<void> _handlePurchase() async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) return;
+
+    setState(() => _purchasing = true);
+
+    try {
+      final res = await http.post(
+        Uri.parse('$kApiBaseUrl/api/mobile/payment-intent'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${session.accessToken}',
+        },
+        body: jsonEncode({'courseId': widget.courseId}),
+      );
+
+      if (res.statusCode != 200) {
+        _showError('受講登録に失敗しました (${res.statusCode})');
+        return;
+      }
+
+      final data = jsonDecode(res.body) as Map<String, dynamic>;
+      final type = data['type'] as String?;
+
+      if (type == 'free' || type == 'enrolled') {
+        if (mounted) setState(() => _enrolled = true);
+        return;
+      }
+
+      if (type == 'subscription') {
+        final url = Uri.tryParse(data['url'] as String? ?? '');
+        if (url != null && await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        }
+        return;
+      }
+
+      if (type == 'one_time') {
+        final clientSecret = data['clientSecret'] as String;
+        final ephemeralKey = data['ephemeralKey'] as String;
+        final customerId = data['customerId'] as String;
+
+        await Stripe.instance.initPaymentSheet(
+          paymentSheetParameters: SetupPaymentSheetParameters(
+            merchantDisplayName: 'AI-Demy',
+            customerId: customerId,
+            customerEphemeralKeySecret: ephemeralKey,
+            paymentIntentClientSecret: clientSecret,
+            style: ThemeMode.dark,
+          ),
+        );
+
+        await Stripe.instance.presentPaymentSheet();
+
+        // Confirm enrollment server-side
+        final paymentIntentId = clientSecret.split('_secret_').first;
+        final confirmRes = await http.post(
+          Uri.parse('$kApiBaseUrl/api/mobile/complete-payment'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${session.accessToken}',
+          },
+          body: jsonEncode({
+            'paymentIntentId': paymentIntentId,
+            'courseId': widget.courseId,
+          }),
+        );
+
+        if (confirmRes.statusCode == 200 && mounted) {
+          setState(() => _enrolled = true);
+        }
+      }
+    } on StripeException catch (e) {
+      if (e.error.code != FailureCode.Canceled) {
+        _showError(e.error.localizedMessage ?? '支払いに失敗しました');
+      }
+    } catch (_) {
+      _showError('エラーが発生しました');
+    } finally {
+      if (mounted) setState(() => _purchasing = false);
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red[700]),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator(color: AppColors.green)));
 
     final course = _course!;
     final instructor = course['users'] as Map<String, dynamic>?;
-    final priceType = course['price_type'] as String?;
-    final price = priceType == 'subscription'
-        ? '¥${course['price_monthly']}/月'
-        : '¥${course['price_one_time']}';
+    final price = formatCoursePriceFromRow(course);
 
     return Scaffold(
       appBar: AppBar(
@@ -92,9 +186,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    CircleAvatar(radius: 14, backgroundColor: AppColors.surface2, child: const Icon(Icons.person, size: 16)),
+                    const CircleAvatar(radius: 14, backgroundColor: AppColors.surface2, child: Icon(Icons.person, size: 16)),
                     const SizedBox(width: 8),
-                    Text(instructor?['display_name'] ?? '', style: TextStyle(color: AppColors.muted, fontSize: 13)),
+                    Text(instructor?['display_name'] ?? '', style: const TextStyle(color: AppColors.muted, fontSize: 13)),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -148,9 +242,24 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: _enrolled
-          ? ElevatedButton(
-              onPressed: _units.isNotEmpty ? () => context.go('/courses/${widget.courseId}/learn/${_units.first['id']}') : null,
-              child: const Text('学習を続ける'),
+          ? Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _units.isNotEmpty ? () => context.go('/courses/${widget.courseId}/learn/${_units.first['id']}') : null,
+                    child: const Text('学習を続ける'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton(
+                  onPressed: () => context.push('/courses/${widget.courseId}/progress'),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.green),
+                    foregroundColor: AppColors.green,
+                  ),
+                  child: const Text('進捗'),
+                ),
+              ],
             )
           : Row(
               children: [
@@ -158,8 +267,13 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {},
-                    child: const Text('受講する'),
+                    onPressed: _purchasing ? null : _handlePurchase,
+                    child: _purchasing
+                        ? const SizedBox(
+                            height: 18, width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text('受講する'),
                   ),
                 ),
               ],

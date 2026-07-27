@@ -10,6 +10,9 @@ import '../../features/courses/screens/course_detail_screen.dart';
 import '../../features/learn/screens/learn_screen.dart';
 import '../../features/instructor/screens/instructor_dashboard_screen.dart';
 import '../../features/btob/screens/btob_dashboard_screen.dart';
+import '../../features/notifications/screens/notifications_screen.dart';
+import '../../features/certificates/screens/certificates_screen.dart';
+import '../../features/progress/screens/course_progress_screen.dart';
 import '../../shared/widgets/main_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -47,6 +50,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(path: '/instructor', builder: (_, _) => const InstructorDashboardScreen()),
           GoRoute(path: '/btob', builder: (_, _) => const BtobDashboardScreen()),
+          GoRoute(path: '/notifications', builder: (_, _) => const NotificationsScreen()),
+          GoRoute(path: '/certificates', builder: (_, _) => const CertificatesScreen()),
+          GoRoute(
+            path: '/courses/:courseId/progress',
+            builder: (_, state) => CourseProgressScreen(courseId: state.pathParameters['courseId']!),
+          ),
         ],
       ),
     ],
